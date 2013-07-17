@@ -1,0 +1,144 @@
+extends layout
+
+block content
+    h1 node.js & sockets
+    
+    div.moveme
+    
+    script
+        var socket = io.connect();
+        var startEmit, endReceive;
+        var moveInterval = 10;
+        
+        var myId;
+        
+        var connections = []; //{id:'',x:0,y:0}
+        
+        function trigger(event, data){
+            switch(event){
+                case 'connected-other':
+                    repopulateWorld();
+                    break;
+                case 'connected-self':
+                    repopulateWorld();
+                    break;
+                default:
+                    break;
+            }
+        }
+        
+        function repopulateWorld(){
+            connections.forEach(function(item, idx, arr){
+                console.log(idx, item, arr);
+                // refresh page
+                //$(".moveme").remove();
+                
+                // add new elements
+                //$("<div></div>").addClass("moveme").attr("id",item.id).appendTo($("body"));
+            });
+        }
+        
+        socket.on('connected-self',function(data){
+            alert('CONNECTED: ' + data.selfId);
+            myId = data.selfId;
+            
+            $("<div></div>").addClass("moveme").attr("id",data.selfId).appendTo($("body"));
+            
+            if(data.currentPlayers.length > 1){
+                data.currentPlayers.forEach(function(item,idx,arr){
+                    $("<div></div>").addClass("moveme").attr("id",item).appendTo($("body"));
+                });
+            }
+            
+        });
+        
+        socket.on('connected-other',function(data){
+            connections.push({id:data.id, x:data.x, y:data.y});
+            
+            $("<div></div>").addClass("moveme").attr("id",data.id).appendTo($("body"));
+            
+            console.log('NEW CONNECTION: ', data, connections);
+            //trigger('connected-other',data);
+        });
+        
+        socket.on('name set',function(data){
+            alert('name set to ' + data);
+        });
+        
+        socket.on('broadcast', function(data){
+            console.log('BROADCAST: ' + data.id + " | ",data.data);
+        });
+        
+        socket.on('boxmousemove',function(data){
+            endReceive = new Date();
+            console.log('LAG (milliseconds): ', endReceive - startEmit);
+            $('#' + myId).css({
+                'left':data.x,
+                'top':data.y
+            });
+        });
+        
+        
+        
+        $("html").on("mousemove", function(e){
+            startEmit = new Date();
+            socket.emit('mousemove',{x:e.pageX,y:e.pageY});
+        });
+        
+        
+        
+        socket.on('update-k',function(data){
+            //endReceive = new Date();
+            //console.log('LAG (milliseconds): ', endReceive - startEmit);
+            var $char = $('#' + data.id);
+            
+            window.char1 = $char;
+            
+            switch(data.k){
+                case 37:
+                    $char.css({
+                        left: $char.position().left - moveInterval
+                    });
+                    break;
+                case 38:
+                    $char.css({
+                        top: $char.position().top - moveInterval
+                    });
+                    break;
+                case 39:
+                    $char.css({
+                        left: $char.position().left + moveInterval
+                    });
+                    break;
+                case 40:
+                    $char.css({
+                        top: $char.position().top + moveInterval
+                    });
+                    break;
+                default:
+                    break;
+            }
+        });
+        
+        $("html").on("keydown",function(e){
+            switch(e.which){
+                case 37:
+                    //startEmit = new Date();
+                    socket.emit('mv-k',{id:myId,k:37});
+                    break;
+                case 38:
+                    //startEmit = new Date();
+                    socket.emit('mv-k',{id:myId,k:38});
+                    break;
+                case 39:
+                    //startEmit = new Date();
+                    socket.emit('mv-k',{id:myId,k:39});
+                    break;
+                case 40:
+                    //startEmit = new Date();
+                    socket.emit('mv-k',{id:myId,k:40});
+                    break;
+                default:
+                    break;
+            }
+        });
